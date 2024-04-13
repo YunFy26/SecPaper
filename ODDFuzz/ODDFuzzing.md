@@ -276,10 +276,12 @@
         ```java
         public class PriorityQueue<E> extends AbstractQueue<E>
             implements java.io.Serializable {
-        ```
+        		```
             private final Comparator<? super E> comparator;
-            	```
+        		```
             }
+        
+        
         
         public class TransformingComparator<I, O> implements Comparator<I>, Serializable {
             private static final long serialVersionUID = 3456940356043606220L;
@@ -287,7 +289,6 @@
             private final Transformer<? super I, ? extends O> transformer;
         }
         ```
-        
     
     ②We iteratively integrate the property tree based on the invocation order of the gadget chain until there are no more isolated but related sub-trees.
     
@@ -321,7 +322,7 @@
                 isVulnerable = value;
             }
         }
-        
+        /**
         模糊测试器随机生成一个注入对象，该对象可能包含 VulnerableClass 的实例，
         并设置 isVulnerable 属性的值。
         
@@ -334,6 +335,7 @@
         由于每次迭代中注入对象的属性布局不确定，模糊测试器可能会在不同的迭代中浪费时间，
         探索不同的路径，但无法持续引导测试目标到达安全敏感调用位置。
         这种无法感知目标执行路径的情况被描述为“sink-unawareness”.
+        **/
         ```
         
     
@@ -389,13 +391,14 @@
                 }
             }
         }
-        
+        /**
         传统的代码覆盖率导向的模糊测试器生成一个注入对象，将 comparator 设置为 null，
         然后调用 processData 方法。这将触发 compare 方法，但由于 comparator 是 null，
         可能不会到达安全敏感的调用位置。
         
         由于新的代码片段（compare 方法）被触发，传统模糊测试器可能认为这是一个有趣的种子，
         并保留它用于下一轮模糊测试。然而，由于 comparator 是 null，实际上并没有到达漏洞链的目标
+        **/
         ```
         
     - Directed Greybox Fuzzing    有向引导灰盒测试
