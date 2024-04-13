@@ -5,7 +5,7 @@
 # Concept
 
 - ODD：Open Dynamic Deserialization
-    
+  
     The root cause of ODD vulnerabilities is that, the deserialized objects can reach (in terms of control flow) and affect (in terms of data flow) the sensitive code (sinks) of target applications.
     
     现有的发现ODD漏洞的工具：
@@ -18,7 +18,7 @@
         - 在程序运行时跟踪对象在堆中的行为，然后生成注入对象进行fuzz，看是否能够到达sink
         - 生成的注入对象可能是无效的
 - Gadget Chain
-    
+  
     Gadget chain：  Magic methods —> a security-sensitive call site.
     
     <aside>
@@ -49,12 +49,12 @@
 
 # Design
 
-![Untitled](ODDFuzzing%206675080abf434705a79a1ebfb0b5c82a/Untitled.png)
+![Untitled](https://github.com/YunFy26/SecPaper/blob/master/ODDFuzz/ODDFuzzing/Untitled.png)
 
 > **Taint Analysis 污点分析**
 > 
 - Background
-    
+  
     However, due to the Java runtime polymorphism, virtual method invocations cannot be
     determined based on the declared types.
     
@@ -66,7 +66,7 @@
     
 - Procedure
     - **Method Summary Computation  计算方法摘要**
-        
+      
         ODDFUZZ first computes static summaries for all methods on the classpath of the PUT
         that are later used for constructing gadget chains.
         
@@ -80,19 +80,19 @@
         
     - **Gadget Chain Identification  构建Gadget chain**
         - Magic Methods
-            
+          
             `readObject`, `hashCode`, `get`, `put`, `compare`, `readExternal`, `readResolve`, `finalize`, `equals`, `compareTo`, `toString`, `validateObject`, `readObjectNoData`, `<clinit>（类的静态初始化，static块中的代码）`, `call, doCall 通常与闭包和函数式编程相关，表示调用一个函数或闭包`
             
         - Security-Sensitive Call Sites   （Sink）
             - RCE
-                
+              
                 `getDeclaredMethod`, `getConstructor`, `findClass`, `getMethod`, `loadClass`, `start`,
                 `exec`, `invoke`, `forName`, `newInstance`, `exit`, `defineClass`, `call`, `invokeMethod`, `invokeStaticMethod`, `invokeConstructor`
                 
                 反射、类加载、命令执行
                 
             - JNDI (Java 命名与目录接口)
-                
+              
                 `getConnection`, `do_lookup`, `lookup`, `c_lookup`, `getObjectInstance`, `connect`
                 
                 > 命名Naming
@@ -108,7 +108,7 @@
                 将一个对象的所有属性信息保存到一个容器环境中。<存储的是对象的属性>
                 
             - SRA  (System Resource Access)
-                
+              
                 `newBufferedReader`, `newBufferedWriter`, `delete`, `newInputStream`, 
                 
                 `newOutputStream`, `<init> （代表构造函数）`
@@ -116,7 +116,7 @@
                 跟IO相关
                 
             - SSRF
-                
+              
                 `openConnection`, `openStream`
                 
                 跟URL相关
@@ -147,8 +147,8 @@
 > **Structure-Aware Directed Greybox Fuzzing  结构化感知有向灰盒测试**
 > 
 - Fuzzing loop
-    
-    ![Untitled](ODDFuzzing%206675080abf434705a79a1ebfb0b5c82a/Untitled%201.png)
+  
+    ![Untitled](https://github.com/YunFy26/SecPaper/blob/master/ODDFuzz/ODDFuzzing/Untitled%201.png)
     
     首先随机生成一个种子程序，然后对该程序进行变异，并执行变异后的程序。如果变异后的程序到达了漏洞点，则将该程序保存为新的种子程序，并重复该过程。否则，如果变异后的程序没有到达漏洞点，则将其丢弃，并重新生成一个新的种子程序。如此重复，直到找到一个到达漏洞点的程序，或者达到最大迭代次数。
     
@@ -245,7 +245,7 @@
     ```
     
 - Procedure
-    
+  
     **Structured Seed Generation  生成结构化种子**
     
     constructing a syntactically valid injection object requires
@@ -263,7 +263,7 @@
     
     大量使用嵌套结构使得gadget chain fuzzing效率很低。于是采用 "property tree" 这种分层数据结构（根节点表示一个类对象，而叶节点表示类字段）设计了一种结构感知的种子生成方法。
     
-    ![Untitled](ODDFuzzing%206675080abf434705a79a1ebfb0b5c82a/Untitled%202.png)
+    ![Untitled](https://github.com/YunFy26/SecPaper/blob/master/ODDFuzz/ODDFuzzing/Untitled%202.png)
     
     属性树构建过程
     
@@ -272,13 +272,13 @@
     - 当一个属性树的字段节点的类型表示（或继承）另一个属性树的根节点（一个类对象），则跟这个对象的属性树进行合并
     - 当一个属性树中的某个字段节点的类型是另一个属性树的根节点（一个类对象）实现的接口时，同样进行合并
     - 比如`PriorityQueue`类中的`Comparator` 字段的类型是`Comparator` 接口，`TransformingComparator` 类实现了`Comparator`接口，就可以把`TransformingComparator` 的属性树跟`PriorityQueue` 类的属性树进行合并
-        
+      
         ```java
         public class PriorityQueue<E> extends AbstractQueue<E>
             implements java.io.Serializable {
-        		```
+        ```
             private final Comparator<? super E> comparator;
-        		```
+            	```
             }
         
         public class TransformingComparator<I, O> implements Comparator<I>, Serializable {
@@ -305,7 +305,7 @@
     通过随机生成和变异注入对象，可能会导致属性布局的变化，使得测试在不同迭代中无法稳定地发现与接收器相关的问题。
     
     - 比如说
-        
+      
         ```java
         public class VulnerableClass {
             private boolean isVulnerable;
@@ -340,10 +340,10 @@
     为了解决这个问题，使用**Hybrid Feedback**对种子进行优先级排序，有两个指标：
     
     - 种子距离（seed distance）
-        
+      
         种子 s 与安全敏感调用站点所在的目标基本块 Tb 之间的距离计算为
         
-        ![Untitled](ODDFuzzing%206675080abf434705a79a1ebfb0b5c82a/Untitled%203.png)
+        ![Untitled](https://github.com/YunFy26/SecPaper/blob/master/ODDFuzz/ODDFuzzing/Untitled%203.png)
         
         **`d(s; Tb)`** 表示种子 **`s`** 到目标基本块 **`Tb`** 的距离。其中，**`db(m; Tb)`** 是种子 **`s`** 执行轨迹中基本块 **`m`** 到目标基本块 **`Tb`** 的距离。
         
@@ -364,7 +364,7 @@
         - 引用数据类型的变异： 对于引用数据类型，漏洞利用工具为特定类型定制了目标模板。例如，对于类类型的属性，工具会通过 **`random.choose()`** 方法随机选择该属性的候选类（即子类）。
         - 数组属性的变异： 对于数组类型的属性，漏洞利用工具使用 **`random.nextInt()`** 方法随机设置数组大小，并根据数组元素的类型（即继承数组类类型的实例）分配随机值。
         
-        ![Untitled](ODDFuzzing%206675080abf434705a79a1ebfb0b5c82a/Untitled%204.png)
+        ![Untitled](https://github.com/YunFy26/SecPaper/blob/master/ODDFuzz/ODDFuzzing/Untitled%204.png)
         
     
     <Object类型的变异好像是从候选gadget chain中的对象或者方法中选取的>
@@ -372,7 +372,7 @@
     当遇到一个类对象的时候，会给一个标识字节，来确定是否改变它的属性值。
     
     - 基于Code Coverage的Fuzz    Coverage-guided Greybox Fuzzing
-        
+      
         ```java
         public class GadgetChain {
             private Comparator<Object> comparator;
@@ -400,33 +400,3 @@
         
     - Directed Greybox Fuzzing    有向引导灰盒测试
 
-# **Implementation**
-
-- **Taint Analysis**  污点分析
-    - ODDFUZZ uses Soot to parse and convert the Java bytecode to the intermediate language Jimple. Based on the basic class information (e.g., class modifier, field, method and instructions) from Jimple, we implemented the method summary-based taint analysis.
-    
-    使用Soot把Java字节码转换为Jimple文件<但是怎么生成gadget chains？>
-    
-- **Structured Fuzzing**  结构化模糊测试
-    - ODDFUZZ modifies the junit-quickcheck generators built in JQF to randomly
-    generate and mutate structured injection objects based on the candidate gadget chains.
-    
-    ODDFuzz修改JQF内置的junit-quickcheck 生成器，基于候选gadget chains随机生成和变异结构化的注入对象。
-    
-    这里生成的结构化的注入对象就是属性树，利用`sun.msic.Unsafe` 绕过构造函数实例化类，从而获得类的修饰符、字段、方法、返回类型。
-    
-- **Runtime Instrumentation**  运行时检测
-    - JVM加载类时，使用ASM工具包，通过javaagent动态监测java字节码。
-    - 当输入的类被加载时，ODDFuzz会注入一个静态方法调用，该调用在每个调用或跳转指令之后执行
-        
-        意思就是，注入一个方法。当java程序运行到<跟注入对象相关的>方法调用或者跳转指令（循环、条件语句等）时就调用这个注入的方法，以记录注入对象的执行轨迹。
-        
-- **Feedback Collection** 反馈收集
-    
-    两个反馈
-    
-    - Coverage Information
-    - Distance Information
-    
-
-![Untitled](ODDFuzzing%206675080abf434705a79a1ebfb0b5c82a/Untitled%205.png)
